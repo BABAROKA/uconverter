@@ -1,0 +1,12 @@
+[package]
+name = "file_converter"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "file_converter"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+image = "0.25.8"
+wasm-bindgen = "0.2"
