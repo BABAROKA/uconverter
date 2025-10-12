@@ -1,0 +1,15 @@
+{
+  "name": "file_converter",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "file_converter_bg.wasm",
+    "file_converter.js",
+    "file_converter.d.ts"
+  ],
+  "main": "file_converter.js",
+  "types": "file_converter.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

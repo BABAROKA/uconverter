@@ -4,6 +4,7 @@ export interface UploadedFile {
 	file: File,
 	preview?: string,
 	blob?: Blob,
+	blob_name?: string,
 }
 
 type FilesStore = {

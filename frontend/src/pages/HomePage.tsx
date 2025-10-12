@@ -1,35 +1,39 @@
 import "../index.css";
 import React, { useState, useEffect } from "react";
-import { ImageUp } from "lucide-react";
+import { ImageUp, ChevronDown, ChevronUp } from "lucide-react";
 import init, { convert_image } from "file_converter";
 import { type UploadedFile, useFiles } from "../store/useFileStore";
+import { useConverted } from "../store/useConvertedStore";
+import { Link } from "react-router";
 
-const allowedTypes = ["image/png", "image/jpeg", "image/gif", "image/tiff", "image/webp", "image/svg"];
+const allowedTypes = ["image/png", "image/jpeg", "image/gif", "image/tiff", "image/webp",];
 
 const HomePage = () => {
+	const [wasmInit, setWasmInit] = useState(false);
+	const [format, setFormat] = useState("");
+	const [formatOpen, setFormatsOpen] = useState(false);
 
 	useEffect(() => {
 		const loadWasm = async () => {
-			await init();
+			await init("/file_converter_bg.wasm");
 			setWasmInit(true);
 		};
 		loadWasm();
 	}, []);
 
-	const [wasmInit, setWasmInit] = useState(false);
 	const uploadedFiles = useFiles(state => state.uploadedFiles);
 	const setUploadedFiles = useFiles(state => state.setUploadedFiles);
 	const addUploadedFiles = useFiles(state => state.addUploadedFiles);
 
-	const convert_to = async (uploadedFile: UploadedFile, format: string) => {
-		if (!wasmInit) {
-			return;
-		}
+	const setConverted = useConverted(state => state.setConverted);
+
+	const convert_to = async (uploadedFile: UploadedFile, outputFormat: string) => {
+		if (!wasmInit) return;
 		const arrayBuffer = await uploadedFile.file.arrayBuffer();
 		const inputImage = new Uint8Array(arrayBuffer);
 		try {
-			const outputU8 = convert_image(inputImage, format);
-			const outputImage = new Blob([new Uint8Array(outputU8)], { type: `image/${format.toLowerCase()}` });
+			const outputU8 = convert_image(inputImage, outputFormat);
+			const outputImage = new Blob([new Uint8Array(outputU8)], { type: `image/${outputFormat.toLowerCase()}` });
 			return outputImage;
 		} catch (e) {
 			console.log(e);
@@ -38,15 +42,23 @@ const HomePage = () => {
 	}
 
 	const convert_all = async () => {
-		const processedFiles: UploadedFile[] = await Promise.all(uploadedFiles.map(async (file) => {
-			const convertedImage = await convert_to(file, "png");
-			return { ...file, blob: convertedImage }
+		const processedFiles: UploadedFile[] = await Promise.all(uploadedFiles.map(async (uploadedFile) => {
+			const convertedImage = await convert_to(uploadedFile, format);
+			if (!convertedImage) {
+				return uploadedFile;
+			}
+			return {
+				...uploadedFile,
+				blob: convertedImage,
+				blob_name: uploadedFile.file.name.replace(/\.[^/.]+$/, '') + `.${format.toLowerCase()}`
+			};
 		}));
 
 		setUploadedFiles(processedFiles);
+		setConverted(true);
 	}
 
-	let processedFiles = (files: File[]) => {
+	let processFiles = (files: File[]) => {
 		if (!files.length) {
 			return;
 		}
@@ -63,7 +75,7 @@ const HomePage = () => {
 		if (selectedFiles?.length) {
 			const files = Array.from(selectedFiles);
 			const validFiles = files.filter(file => allowedTypes.includes(file.type));
-			processedFiles(validFiles);
+			processFiles(validFiles);
 		}
 		e.target.value = "";
 	}
@@ -73,7 +85,7 @@ const HomePage = () => {
 
 		const droppedFiles = Array.from(e.dataTransfer.files);
 		const validFiles = droppedFiles.filter(file => allowedTypes.includes(file.type));
-		processedFiles(validFiles)
+		processFiles(validFiles)
 	}
 
 	const removeAll = () => {
@@ -91,6 +103,7 @@ const HomePage = () => {
 				return uploadedFile;
 			} else if (uploadedFile.preview) {
 				URL.revokeObjectURL(uploadedFile.preview);
+				return false;
 			}
 		}))
 		setUploadedFiles(processedFiles);
@@ -118,11 +131,25 @@ const HomePage = () => {
 					</div>
 				</div>
 				{uploadedFiles.length > 0 && (
-					<div className="w-full flex gap- gap-3">
-						<button onClick={convert_all} className="bg-primary py-1 px-6 text-md cursor-pointer shadow-m rounded-xl text-background-light hover:bg-secondary transition-all duration-200">Convert</button>
-						<div>
-							<button className="py-1 px-6 text-md cursor-pointer shadow-m rounded-xl bg-background hover:bg-primary hover:text-background-light transition-all duration-200">Format</button>
-							<div></div>
+					<div className="w-full flex gap-3">
+						<Link to={"/download"}><button disabled={!format} onClick={convert_all} className="bg-primary disabled:bg-primary-muted py-1 px-6 text-md cursor-pointer shadow-m rounded-xl text-background-light hover:bg-secondary transition-all duration-200">Convert</button></Link>
+						<div className="relative space-y-1">
+							<button onClick={() => setFormatsOpen(!formatOpen)} className='bg-background hover:bg-primary hover:text-background-light shadow-m flex h-full justify-between items-center gap-2 px-6 rounded-xl cursor-pointer text-center transition-all duration-200'>
+								{format == "" ? "Format" : format.toUpperCase()} {formatOpen? <ChevronUp className='stroke-1 size-4' /> : <ChevronDown className='stroke-1 size-4' />}
+							</button>
+							{formatOpen && (
+								<div className='absolute rounded-xl p-2 overflow-hidden mt-0.5 bg-background shadow-m w-max'>
+									<ul className='grid grid-cols-2 gap-2 p-1'>
+										{allowedTypes.filter(excludeType => excludeType.split("/")[1] != format).map((type, index) => {
+											const formatType = type.split("/")[1];
+											return (
+												<li key={index} onClick={() => { setFormat(formatType); setFormatsOpen(!formatOpen) }} className='bg-background-light shadow-s hover:shadow-m rounded-lg cursor-pointer py-1 px-5 transition-all duration-200 text-center' value={formatType}>{formatType.toUpperCase()}</li>
+											)
+										})}
+									</ul>
+								</div>
+							)}
+
 						</div>
 						<button onClick={removeAll} className="ml-auto py-1 px-6 rounded-xl shadow-m bg-background hover:bg-danger hover:text-background cursor-pointer transition-all duration-200">Remove All</button>
 					</div>
