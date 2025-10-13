@@ -30,3 +30,7 @@
 				0 4px 6px #00000030,
 				0 6px 10px #00000015;
 }
+
+::view-transition-group(pizza-image) {
+  animation-duration: 400ms;
+}
