@@ -33,35 +33,33 @@ const HomePage = () => {
 		if (!wasmInit) return;
 		const arrayBuffer = await uploadedFile.file.arrayBuffer();
 		const inputImage = new Uint8Array(arrayBuffer);
-		const outputU8 = convert_image(inputImage, outputFormat);
+		const outputU8 = await convert_image(inputImage, outputFormat);
 		const outputImage = new Blob([new Uint8Array(outputU8)], { type: `image/${outputFormat.toLowerCase()}` });
 		return outputImage;
 	}
 
 	const convert_all = async () => {
 		setConverting(true);
-		let processedFiles: UploadedFile[] = [];
-		for (const uploadedFile of uploadedFiles) {
+		const processedFiles: UploadedFile[] = await Promise.all(uploadedFiles.map(async (uploadedFile) => {
 			try {
-				const convertedImage = await convert_to(uploadedFile, format);
-				if (!convertedImage) {
-					processedFiles.push(uploadedFile);
-					continue;
+				const convertedImage = await convert_to(uploadedFile, format); if (!convertedImage) {
+					return uploadedFile;
 				}
-				processedFiles.push({
+				return {
 					...uploadedFile,
 					blob: convertedImage,
-					blob_name: uploadedFile.file.name.replace(/\.[^/.]+$/, '') + `.${format.toLowerCase()}`,
-				})
-			} catch (e) {
-				console.log(e);
-				processedFiles.push(uploadedFile);
+					blob_name: uploadedFile.file.name.replace(/\.[^/.]+$/, '') + `.${format.toLowerCase()}`
+				};
+
+			} catch {
+				return uploadedFile;
 			}
-		}
+		}));
+
 		setUploadedFiles(processedFiles);
-		setConverting(false);
 		setConverted(true);
 		navigate("/download", { viewTransition: true });
+		setConverting(false);
 	}
 
 	let processFiles = (files: File[]) => {
