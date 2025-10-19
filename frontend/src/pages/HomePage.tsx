@@ -12,7 +12,7 @@ interface messageData {
 }
 
 
-const allowedTypes = ["image/png", "image/jpeg", "image/gif", "image/tiff", "image/webp",];
+const allowedTypes = ["image/png", "image/jpeg", "image/gif", "image/tiff", "image/webp", "application/pdf"];
 
 const HomePage = () => {
 	const [format, setFormat] = useState("");
@@ -54,7 +54,7 @@ const HomePage = () => {
 
 			convertWorker.onerror = (e) => {
 				convertWorker.terminate();
-				reject(new Error(`Worker error ${e.message}`))
+				reject(new Error(`Worker error: ${e.message}`))
 			}
 		});
 		try {
@@ -138,12 +138,12 @@ const HomePage = () => {
 	return (
 		<main className="bg-background-dark w-full min-h-screen">
 			<div className="absolute size-30 -mt-5 rotate-y-180" style={{ viewTransitionName: "pizza-image" }}>
-				<img src="/pizza.svg" alt="pizza" className="" />
+				<img src="/pizza.svg" alt="pizza" draggable={false} />
 			</div>
 			<div className="w-full place-items-center pt-20">
 				<div className="p-5 flex flex-col gap-3 w-250">
 					<div onDrop={handleDrop} className="relative h-70 bg-background size-full rounded-xl shadow-m hover:shadow-l transition-all duration-200">
-						<input className="size-full cursor-pointer absolute inset-0 opacity-0" type="file" multiple accept="image/*" onChange={handleFiles} />
+						<input className="size-full cursor-pointer absolute inset-0 opacity-0" type="file" multiple accept="image/*, application/pdf" onChange={handleFiles} />
 						<div className="size-full flex flex-col gap-4 justify-center items-center">
 							{
 								converting ?
@@ -160,7 +160,7 @@ const HomePage = () => {
 						<div className="w-full flex gap-3">
 							<button disabled={!format || converting} onClick={convert_all} className="bg-primary disabled:cursor-default disabled:bg-primary-muted py-1 px-6 text-md cursor-pointer shadow-m rounded-xl text-background-light hover:bg-secondary transition-all duration-200">Convert</button>
 							<div className="relative space-y-1">
-								<button onClick={() => setFormatsOpen(!formatOpen)} className='bg-background hover:bg-primary hover:text-background-light shadow-m flex h-full justify-between items-center gap-2 px-6 rounded-xl cursor-pointer text-center transition-all duration-200'>
+								<button disabled={converting} onClick={() => setFormatsOpen(!formatOpen)} className='bg-background hover:bg-primary hover:text-background-light shadow-m flex h-full justify-between items-center gap-2 px-6 rounded-xl cursor-pointer text-center disabled:bg-primary-muted disabled:cursor-default disabled:text-background-light transition-all duration-200'>
 									{format == "" ? "Format" : format.toUpperCase()} {formatOpen ? <ChevronUp className='stroke-1 size-4' /> : <ChevronDown className='stroke-1 size-4' />}
 								</button>
 								{formatOpen && (

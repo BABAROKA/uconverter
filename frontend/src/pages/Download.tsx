@@ -54,7 +54,7 @@ const Download = () => {
 	return (
 		<main className="bg-background-dark place-items-center w-full min-h-screen pt-20">
 			<div className="size-60 rotate-y-180" style={{ viewTransitionName: "pizza-image" }}>
-				<img src="/pizza.svg" alt="pizza" className={downloading ? "animate-spin" : "animate-none"} />
+				<img src="/pizza.svg" alt="pizza" className={downloading ? "animate-spin" : "animate-none"}  draggable={false}/>
 			</div>
 			<div className="w-full flex flex-col gap-10 items-center">
 				<div className="p-3 shadow-l rounded-xl bg-background">

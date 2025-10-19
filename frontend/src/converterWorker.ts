@@ -1,4 +1,4 @@
-import init, { convert_image } from "file_converter";
+import init, { convert_image, convert_pdf } from "file_converter";
 import { type UploadedFile } from "./store/useFileStore";
 
 interface messageData {
@@ -24,10 +24,18 @@ onmessage = async e => {
 
 		const convertedFiles: UploadedFile[] = await Promise.all(uploadedFiles.map(async (uploadedFile) => {
 			try {
+				const type = uploadedFile.file.type.split("/")[1];
 				const arrayBuffer = await uploadedFile.file.arrayBuffer();
 				const inputU8 = new Uint8Array(arrayBuffer);
-				const outputU8 = await convert_image(inputU8, format); if (!outputU8) {
-					return uploadedFile;
+				let outputU8;
+				if (type == "pdf") {
+					outputU8 = await convert_pdf(inputU8, format); if (!outputU8) {
+						return uploadedFile;
+					};
+				} else {
+					outputU8 = await convert_image(inputU8, format); if (!outputU8) {
+						return uploadedFile;
+					};
 				}
 				const convertedImage = new Blob([new Uint8Array(outputU8)], { type: `image/${format.toLowerCase()}` });
 				return {
