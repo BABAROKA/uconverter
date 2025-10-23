@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-	"wasm": "cd ../packages/file_converter && wasm-pack build --target web --release && node -e \"fs=require('fs');fs.copyFileSync('./pkg/file_converter_bg.wasm','../../frontend/public/file_converter_bg.wasm');\" && cd ../../frontend && bun install && bun run dev",
+	"wasm": "cd ../packages/file_converter && wasm-pack build --target web --release && node -e \"fs=require('fs');fs.copyFileSync('./pkg/file_converter_bg.wasm','../../frontend/public/file_converter_bg.wasm');\" && cd ../../frontend && bun install && bun run dev --host",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",

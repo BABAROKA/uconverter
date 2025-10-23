@@ -1,6 +1,6 @@
 import "../index.css";
 import React, { useEffect, useState } from "react";
-import { ImageUp, ChevronDown, ChevronUp, LoaderPinwheel } from "lucide-react";
+import { ImageUp, ChevronDown, ChevronUp, LoaderPinwheel, File } from "lucide-react";
 import { type UploadedFile, useFiles } from "../store/useFileStore";
 import { useConverted } from "../store/useConvertedStore";
 import { useNavigate } from 'react-router-dom';
@@ -81,7 +81,10 @@ const HomePage = () => {
 			return;
 		}
 		const processedFiles: UploadedFile[] = files.map(file => {
-			const preview = URL.createObjectURL(file);
+			let preview = undefined;
+			if (file.type.startsWith("image")) {
+				preview = URL.createObjectURL(file);
+			}
 			return { file, preview };
 		});
 		addUploadedFiles(processedFiles);
@@ -136,13 +139,13 @@ const HomePage = () => {
 	}
 
 	return (
-		<main className="bg-background-dark w-full min-h-screen">
+		<main className="bg-background-dark w-full min-h-screen px-3">
 			<div className="absolute size-30 -mt-5 rotate-y-180" style={{ viewTransitionName: "pizza-image" }}>
 				<img src="/pizza.svg" alt="pizza" draggable={false} />
 			</div>
-			<div className="w-full place-items-center pt-20">
+			<div className="w-full flex justify-center pt-20">
 				<div className="p-5 flex flex-col gap-3 w-250">
-					<div onDrop={handleDrop} className="relative h-70 bg-background size-full rounded-xl shadow-m hover:shadow-l transition-all duration-200">
+					<div onDrop={handleDrop} className="relative h-40 md:h-70 bg-background size-full rounded-xl shadow-m hover:shadow-l transition-all duration-200">
 						<input className="size-full cursor-pointer absolute inset-0 opacity-0" type="file" multiple accept="image/*, application/pdf" onChange={handleFiles} />
 						<div className="size-full flex flex-col gap-4 justify-center items-center">
 							{
@@ -158,15 +161,15 @@ const HomePage = () => {
 					</div>
 					{(uploadedFiles.length > 0) && (
 						<div className="w-full flex gap-3">
-							<button disabled={!format || converting} onClick={convert_all} className="bg-primary disabled:cursor-default disabled:bg-primary-muted py-1 px-6 text-md cursor-pointer shadow-m rounded-xl text-background-light hover:bg-secondary transition-all duration-200">Convert</button>
+							<button disabled={!format || converting} onClick={convert_all} className="bg-primary disabled:cursor-default disabled:bg-primary-muted px-2 md:px-6 text-md cursor-pointer shadow-m rounded-xl text-background-light hover:bg-secondary transition-all duration-200">Convert</button>
 							<div className="relative space-y-1">
-								<button disabled={converting} onClick={() => setFormatsOpen(!formatOpen)} className='bg-background hover:bg-primary hover:text-background-light shadow-m flex h-full justify-between items-center gap-2 px-6 rounded-xl cursor-pointer text-center disabled:bg-primary-muted disabled:cursor-default disabled:text-background-light transition-all duration-200'>
+								<button disabled={converting} onClick={() => setFormatsOpen(!formatOpen)} className='bg-background hover:bg-primary hover:text-background-light shadow-m flex h-full justify-between items-center gap-2 px-2 md:px-6 rounded-xl cursor-pointer text-center disabled:bg-primary-muted disabled:cursor-default disabled:text-background-light transition-all duration-200'>
 									{format == "" ? "Format" : format.toUpperCase()} {formatOpen ? <ChevronUp className='stroke-1 size-4' /> : <ChevronDown className='stroke-1 size-4' />}
 								</button>
 								{formatOpen && (
 									<div className='absolute rounded-xl p-2 overflow-hidden mt-0.5 bg-background shadow-m w-max'>
 										<ul className='grid grid-cols-2 gap-2 p-1'>
-											{allowedTypes.filter(excludeType => excludeType.split("/")[1] != format).map((type, index) => {
+											{allowedTypes.filter(excludeType => excludeType.split("/")[1] != format && excludeType.split("/")[0] == "image").map((type, index) => {
 												const formatType = type.split("/")[1];
 												return (
 													<li key={index} onClick={() => { setFormat(formatType); setFormatsOpen(!formatOpen) }} className='bg-background-light shadow-s hover:shadow-m rounded-lg cursor-pointer py-1 px-5 transition-all duration-200 text-center' value={formatType}>{formatType.toUpperCase()}</li>
@@ -180,12 +183,19 @@ const HomePage = () => {
 							<button onClick={removeAll} className="ml-auto py-1 px-6 rounded-xl shadow-m bg-background hover:bg-danger hover:text-background cursor-pointer transition-all duration-200">Remove All</button>
 						</div>
 					)}
-					<div className="grid grid-cols-5 gap-4">
+					<div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
 						{uploadedFiles.map((uploadedFile, index) => (
 							<div key={index} className="bg-background rounded-xl p-4 shadow-m transition-all duration-200">
 								<div className="space-y-2">
 									<div className="shadow-s bg-background-light size-full flex aspect-square justify-center rounded-md items-center overflow-hidden">
-										<img src={uploadedFile.preview} draggable={false} />
+										{uploadedFile.preview ? (
+											<img src={uploadedFile.preview} draggable={false} />
+										) : (
+											<div className='text-center space-y-1'>
+												<File className='size-10 stroke-primary-muted mx-auto' />
+												<p className='text-xs text-text-muted'>{uploadedFile.file.type.split('/')[1] || 'FILE'}</p>
+											</div>
+										)}
 									</div>
 									<div>
 										<p className="truncate text-sm text-text">{uploadedFile.file.name}</p>

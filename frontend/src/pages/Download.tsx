@@ -43,7 +43,7 @@ const Download = () => {
 
 		const url = URL.createObjectURL(blob);
 		const a = document.createElement("a");
-		a.href = URL.createObjectURL(blob);
+		a.href = url;
 		a.download = "converted_files.zip";
 		a.click();
 		URL.revokeObjectURL(url);
@@ -52,7 +52,7 @@ const Download = () => {
 	}
 
 	return (
-		<main className="bg-background-dark place-items-center w-full min-h-screen pt-20">
+		<main className="bg-background-dark place-items-center w-full min-h-screen pt-20 px-3">
 			<div className="size-60 rotate-y-180" style={{ viewTransitionName: "pizza-image" }}>
 				<img src="/pizza.svg" alt="pizza" className={downloading ? "animate-spin" : "animate-none"}  draggable={false}/>
 			</div>

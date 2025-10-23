@@ -73,58 +73,43 @@ pub fn convert_pdf(input_file: Vec<u8>, input_format: String) -> Promise {
             _ => return Err(JsValue::from_str("Unable to recognise format")),
         };
 
-        let dynamic_image = if let Some(filters) = &first_image.filters {
-            let mut data = first_image.content.to_vec();
-            let mut load = false;
-
-            for filter in filters {
-                match filter.as_str() {
-                    "FlateDecode" => {
-                        let mut z = ZlibDecoder::new(&data[..]);
-                        let mut decoded = Vec::new();
-                        z.read_to_end(&mut decoded).map_err(|err| {
-                            JsValue::from_str(&format!("FlateDecode failed: {err}"))
-                        })?;
-                        data = decoded;
-                        load = false;
-                    }
-                    "DCTDecode" => {
-                        load = true;
-                    }
-                    other => {
-                        return Err(JsValue::from_str(&format!("Unsupported filter: {other}")));
-                    }
+        let mut data = first_image.content.to_vec();
+        for filter in first_image.filters.as_deref().unwrap_or(&[]) {
+            match filter.as_str() {
+                "FlateDecode" => {
+                    let mut z = ZlibDecoder::new(&data[..]);
+                    let mut decoded = Vec::new();
+                    z.read_to_end(&mut decoded).map_err(|err| {
+                        JsValue::from_str(&format!("Unable to decode filter: {err}"))
+                    })?;
+                    data = decoded;
                 }
+                "DCTDecode" => {}
+                other => return Err(JsValue::from_str(&format!("Filter not supported: {other}"))),
             }
-            if load {
-                let img = load_from_memory(&data).map_err(|err| {
-                    JsValue::from_str(&format!("Loading from memory failed: {err}"))
-                })?;
-                img
-            } else {
-                let img = ImageBuffer::<Rgb<u8>, Vec<u8>>::from_raw(
-                    first_image.width as u32,
-                    first_image.height as u32,
-                    data,
-                )
-                .ok_or_else(|| JsValue::from_str("Unable to convert data to image"))?;
-                image::DynamicImage::ImageRgb8(img)
-            }
-        } else {
+        }
+
+        let dynamic_image = if let Some(filter) =
+            first_image.filters.as_deref().unwrap_or(&[]).iter().last()
+            && filter == "FlateDecode"
+        {
             let img = ImageBuffer::<Rgb<u8>, Vec<u8>>::from_raw(
                 first_image.width as u32,
                 first_image.height as u32,
-                first_image.content.to_vec(),
+                data,
             )
             .ok_or_else(|| JsValue::from_str("Unable to convert data to image"))?;
             image::DynamicImage::ImageRgb8(img)
+        } else {
+            let img = load_from_memory(&data)
+                .map_err(|err| JsValue::from_str(&format!("Loading from memory failed: {err}")))?;
+            img
         };
+
         let mut output_image = Cursor::new(Vec::new());
-        if let Err(_) = dynamic_image.write_to(&mut output_image, output_format) {
-            return Err(JsValue::from_str(
-                "Unable to convert file to desired format",
-            ));
-        }
+        dynamic_image
+            .write_to(&mut output_image, output_format)
+            .map_err(|_| JsValue::from_str("Unable to convert file to desired format"))?;
         let js_array: JsValue = Uint8Array::from(&output_image.into_inner()[..]).into();
         return Ok(js_array.into());
     })
