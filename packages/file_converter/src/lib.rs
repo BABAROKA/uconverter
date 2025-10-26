@@ -1,6 +1,6 @@
 use console_error_panic_hook;
 use flate2::read::ZlibDecoder;
-use image::{ImageBuffer, ImageFormat, Rgb, load_from_memory};
+use image::{ImageBuffer, ImageFormat, load_from_memory};
 use lopdf::{Document, ObjectId, xobject::PdfImage};
 use std::io::{Cursor, Read};
 use std::panic;
@@ -22,33 +22,25 @@ pub fn main_js() {
 }
 
 #[wasm_bindgen]
-pub fn convert_image(input_file: Vec<u8>, input_format: String) -> Promise {
+pub fn convert_image(input_file: Vec<u8>, output_format: String) -> Promise {
     future_to_promise(async move {
         let dynamic_image = load_from_memory(&input_file).map_err(|err| {
             JsValue::from_str(&format!("Unable to load image file from the bytes {}", err))
         })?;
         let mut output_image = Cursor::new(Vec::new());
-        let output_format = match input_format.as_str() {
-            "png" => ImageFormat::Png,
-            "gif" => ImageFormat::Gif,
-            "jpeg" | "jpg" => ImageFormat::Jpeg,
-            "webp" => ImageFormat::WebP,
-            "tiff" => ImageFormat::Tiff,
-            _ => return Err(JsValue::from_str("Unable to recognise format")),
-        };
+        let output_format = get_format(&output_format)
+            .ok_or_else(|| JsValue::from_str("Unable to recognise format"))?;
 
-        if let Err(_) = dynamic_image.write_to(&mut output_image, output_format) {
-            return Err(JsValue::from_str(
-                "Unable to convert file to desired format",
-            ));
-        }
+        dynamic_image
+            .write_to(&mut output_image, output_format)
+            .map_err(|_| JsValue::from_str("Unable to convert file to desired format"))?;
         let js_array: JsValue = Uint8Array::from(&output_image.into_inner()[..]).into();
-        return Ok(js_array.into());
+        Ok(js_array)
     })
 }
 
 #[wasm_bindgen]
-pub fn convert_pdf(input_file: Vec<u8>, input_format: String) -> Promise {
+pub fn convert_pdf(input_file: Vec<u8>, output_format: String) -> Promise {
     future_to_promise(async move {
         let doc = Document::load_mem(&input_file)
             .map_err(|err| JsValue::from_str(&format!("Unable to load document: {err}")))?;
@@ -64,17 +56,13 @@ pub fn convert_pdf(input_file: Vec<u8>, input_format: String) -> Promise {
             .next()
             .ok_or_else(|| JsValue::from_str("No images in this pdf document"))?;
 
-        let output_format = match input_format.as_str() {
-            "png" => ImageFormat::Png,
-            "gif" => ImageFormat::Gif,
-            "jpeg" | "jpg" => ImageFormat::Jpeg,
-            "webp" => ImageFormat::WebP,
-            "tiff" => ImageFormat::Tiff,
-            _ => return Err(JsValue::from_str("Unable to recognise format")),
-        };
+        let output_format = get_format(&output_format)
+            .ok_or_else(|| JsValue::from_str("Unable to recognise format"))?;
 
         let mut data = first_image.content.to_vec();
-        for filter in first_image.filters.as_deref().unwrap_or(&[]) {
+
+        let filters = first_image.filters.as_deref().unwrap_or(&[]);
+        for filter in filters {
             match filter.as_str() {
                 "FlateDecode" => {
                     let mut z = ZlibDecoder::new(&data[..]);
@@ -89,21 +77,17 @@ pub fn convert_pdf(input_file: Vec<u8>, input_format: String) -> Promise {
             }
         }
 
-        let dynamic_image = if let Some(filter) =
-            first_image.filters.as_deref().unwrap_or(&[]).iter().last()
+        let last_filter = first_image.filters.as_deref().unwrap_or(&[]).iter().last();
+        let dynamic_image = if let Some(filter) = last_filter
             && filter == "FlateDecode"
         {
-            let img = ImageBuffer::<Rgb<u8>, Vec<u8>>::from_raw(
-                first_image.width as u32,
-                first_image.height as u32,
-                data,
-            )
-            .ok_or_else(|| JsValue::from_str("Unable to convert data to image"))?;
+            let img =
+                ImageBuffer::from_raw(first_image.width as u32, first_image.height as u32, data)
+                    .ok_or_else(|| JsValue::from_str("Unable to convert data to image"))?;
             image::DynamicImage::ImageRgb8(img)
         } else {
-            let img = load_from_memory(&data)
-                .map_err(|err| JsValue::from_str(&format!("Loading from memory failed: {err}")))?;
-            img
+            load_from_memory(&data)
+                .map_err(|err| JsValue::from_str(&format!("Loading from memory failed: {err}")))?
         };
 
         let mut output_image = Cursor::new(Vec::new());
@@ -111,6 +95,20 @@ pub fn convert_pdf(input_file: Vec<u8>, input_format: String) -> Promise {
             .write_to(&mut output_image, output_format)
             .map_err(|_| JsValue::from_str("Unable to convert file to desired format"))?;
         let js_array: JsValue = Uint8Array::from(&output_image.into_inner()[..]).into();
-        return Ok(js_array.into());
+        Ok(js_array)
     })
+}
+
+pub fn get_format(input_format: &str) -> Option<ImageFormat> {
+    match input_format {
+        "png" => Some(ImageFormat::Png),
+        "gif" => Some(ImageFormat::Gif),
+        "jpeg" | "jpg" => Some(ImageFormat::Jpeg),
+        "webp" => Some(ImageFormat::WebP),
+        "tiff" => Some(ImageFormat::Tiff),
+        "bmp" => Some(ImageFormat::Bmp),
+        "avif" => Some(ImageFormat::Avif),
+
+        _ => None,
+    }
 }

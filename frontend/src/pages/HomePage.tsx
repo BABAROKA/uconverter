@@ -11,8 +11,7 @@ interface messageData {
 	error: any;
 }
 
-
-const allowedTypes = ["image/png", "image/jpeg", "image/gif", "image/tiff", "image/webp", "application/pdf"];
+const allowedTypes = ["image/png", "image/jpeg", "image/gif", "image/tiff", "image/webp", "image/bmp", "image/avif", "application/pdf"];
 
 const HomePage = () => {
 	const [format, setFormat] = useState("");
@@ -66,6 +65,7 @@ const HomePage = () => {
 			setUploadedFiles(processedFiles);
 		} catch (e) {
 			console.log(e);
+			setConverting(false);
 		}
 		setConverted(true);
 		try {
@@ -82,7 +82,7 @@ const HomePage = () => {
 		}
 		const processedFiles: UploadedFile[] = files.map(file => {
 			let preview = undefined;
-			if (file.type.startsWith("image")) {
+			if (file.type.startsWith("image") && !file.type.endsWith("tiff")) {
 				preview = URL.createObjectURL(file);
 			}
 			return { file, preview };
@@ -145,8 +145,9 @@ const HomePage = () => {
 			</div>
 			<div className="w-full flex justify-center pt-20">
 				<div className="p-5 flex flex-col gap-3 w-250">
-					<div onDrop={handleDrop} className="relative h-40 md:h-70 bg-background size-full rounded-xl shadow-m hover:shadow-l transition-all duration-200">
-						<input className="size-full cursor-pointer absolute inset-0 opacity-0" type="file" multiple accept="image/*, application/pdf" onChange={handleFiles} />
+					<div onDrop={handleDrop} className={`relative h-40 md:h-70 bg-background size-full rounded-xl transition-all duration-200 ${converting ? "" : "shadow-m hover:shadow-l"}`}>
+						<input disabled={converting} className={`size-full absolute inset-0 opacity-0 ${converting ? "cursor-default" : "cursor-pointer"}`} type="file" multiple accept="image/*, application/pdf" onChange={handleFiles} />
+
 						<div className="size-full flex flex-col gap-4 justify-center items-center">
 							{
 								converting ?
@@ -161,13 +162,13 @@ const HomePage = () => {
 					</div>
 					{(uploadedFiles.length > 0) && (
 						<div className="w-full flex gap-3">
-							<button disabled={!format || converting} onClick={convert_all} className="bg-primary disabled:cursor-default disabled:bg-primary-muted px-2 md:px-6 text-md cursor-pointer shadow-m rounded-xl text-background-light hover:bg-secondary transition-all duration-200">Convert</button>
+							<button disabled={!format || converting} onClick={convert_all} className="text-sm sm:text-base bg-primary disabled:cursor-default disabled:bg-primary-muted px-2 md:px-6 text-md cursor-pointer shadow-m rounded-xl text-background-light hover:bg-secondary transition-all duration-200">Convert</button>
 							<div className="relative space-y-1">
-								<button disabled={converting} onClick={() => setFormatsOpen(!formatOpen)} className='bg-background hover:bg-primary hover:text-background-light shadow-m flex h-full justify-between items-center gap-2 px-2 md:px-6 rounded-xl cursor-pointer text-center disabled:bg-primary-muted disabled:cursor-default disabled:text-background-light transition-all duration-200'>
+								<button disabled={converting} onClick={() => setFormatsOpen(!formatOpen)} className='text-sm sm:text-base bg-background hover:bg-primary hover:text-background-light shadow-m flex h-full justify-between items-center gap-2 px-2 md:px-6 rounded-xl cursor-pointer text-center disabled:bg-primary-muted disabled:cursor-default disabled:text-background-light transition-all duration-200'>
 									{format == "" ? "Format" : format.toUpperCase()} {formatOpen ? <ChevronUp className='stroke-1 size-4' /> : <ChevronDown className='stroke-1 size-4' />}
 								</button>
 								{formatOpen && (
-									<div className='absolute rounded-xl p-2 overflow-hidden mt-0.5 bg-background shadow-m w-max'>
+									<div className='absolute rounded-xl p-2 overflow-hidden mt-0.5 bg-background shadow-l w-max'>
 										<ul className='grid grid-cols-2 gap-2 p-1'>
 											{allowedTypes.filter(excludeType => excludeType.split("/")[1] != format && excludeType.split("/")[0] == "image").map((type, index) => {
 												const formatType = type.split("/")[1];
@@ -180,7 +181,7 @@ const HomePage = () => {
 								)}
 
 							</div>
-							<button onClick={removeAll} className="ml-auto py-1 px-6 rounded-xl shadow-m bg-background hover:bg-danger hover:text-background cursor-pointer transition-all duration-200">Remove All</button>
+							<button onClick={removeAll} className="text-sm sm:text-base text-nowrap ml-auto py-1 px-2 md:px-6 rounded-xl shadow-m bg-background hover:bg-danger hover:text-background cursor-pointer transition-all duration-200">Remove All</button>
 						</div>
 					)}
 					<div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
