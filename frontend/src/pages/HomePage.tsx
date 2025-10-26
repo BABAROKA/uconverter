@@ -1,5 +1,5 @@
 import "../index.css";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ImageUp, ChevronDown, ChevronUp, LoaderPinwheel, File } from "lucide-react";
 import { type UploadedFile, useFiles } from "../store/useFileStore";
 import { useConverted } from "../store/useConvertedStore";
@@ -14,6 +14,7 @@ interface messageData {
 const allowedTypes = ["image/png", "image/jpeg", "image/gif", "image/tiff", "image/webp", "image/bmp", "image/avif", "application/pdf"];
 
 const HomePage = () => {
+	const workerRef = useRef<Worker | null>(null);
 	const [format, setFormat] = useState("");
 	const [formatOpen, setFormatsOpen] = useState(false);
 	const [converting, setConverting] = useState(false);
@@ -30,21 +31,30 @@ const HomePage = () => {
 		setConverted(false);
 		setConverting(false);
 		setFormat("");
+		
+		const convertWorker = new Worker(new URL("../converterWorker.ts", import.meta.url), { type: "module" });
+		workerRef.current = convertWorker;
+
 		return () => {
 			uploadedFiles.forEach(f => f.preview && URL.revokeObjectURL(f.preview));
+			workerRef.current?.terminate();
 		};
 	}, []);
 
 	const convert_all = async () => {
 		setConverting(true);
 		const filePromise = new Promise<UploadedFile[]>((resolve, reject) => {
-			const convertWorker = new Worker(new URL("../converterWorker.ts", import.meta.url), { type: "module" });
+			const convertWorker = workerRef.current;
+			if (!convertWorker) {
+				console.error("Conversion worker not available.");
+				setConverting(false);
+				return;
+			}
 
 			convertWorker.postMessage({ uploadedFiles, format, wasmPath: "/file_converter_bg.wasm" });
 
 			convertWorker.onmessage = (e) => {
 				const { success, convertedFiles, error }: messageData = e.data;
-				convertWorker.terminate();
 				if (!success) {
 					reject(error || new Error("Worker conversion failed with unknown error."))
 				}
@@ -52,7 +62,6 @@ const HomePage = () => {
 			}
 
 			convertWorker.onerror = (e) => {
-				convertWorker.terminate();
 				reject(new Error(`Worker error: ${e.message}`))
 			}
 		});
